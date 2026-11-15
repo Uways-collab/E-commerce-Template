@@ -1,0 +1,276 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+ * Design system
+ * Theme values are CSS variables injected by the root layout from the store's
+ * configuration document, so every colour / font / radius is client-defined.
+ * ========================================================================== */
+
+@layer base {
+  :root {
+    --c-canvas: 247 244 239;
+    --c-surface: 255 255 255;
+    --c-ink: 25 24 19;
+    --c-muted: 111 106 96;
+    --c-line: 226 218 206;
+    --c-accent: 158 82 51;
+    --c-accent-ink: 253 249 243;
+    --c-success: 63 107 79;
+    --c-warning: 176 128 51;
+    --c-danger: 160 58 46;
+    --r-sm: 2px;
+    --r-md: 4px;
+    --r-lg: 6px;
+    --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    --font-body: "Inter Variable", "Inter", system-ui, sans-serif;
+    --header-height: 64px;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgb(var(--c-accent) / 0.16);
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display font-normal;
+    letter-spacing: -0.015em;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent));
+    outline-offset: 3px;
+  }
+
+  /* Tailwind's preflight strips number input spinners; restore usable steppers */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-page px-5 sm:px-6 md:px-8 lg:px-12;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-medium uppercase leading-none tracking-eyebrow text-muted;
+  }
+
+  .display-hero {
+    font-size: clamp(2.75rem, 6.2vw, 5.75rem);
+    line-height: 0.98;
+    letter-spacing: -0.03em;
+  }
+
+  .display-section {
+    font-size: clamp(1.9rem, 3.4vw, 3.1rem);
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+  }
+
+  .display-card {
+    font-size: clamp(1.2rem, 1.7vw, 1.55rem);
+    line-height: 1.15;
+  }
+
+  /* Buttons ---------------------------------------------------------------- */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap border text-[12px] font-medium uppercase tracking-[0.14em] transition-all duration-300 ease-editorial disabled:cursor-not-allowed disabled:opacity-45;
+    border-radius: var(--r-sm);
+    padding: 1rem 1.75rem;
+  }
+
+  .btn-sm {
+    @apply text-[11px] tracking-[0.1em];
+    padding: 0.6rem 1rem;
+  }
+
+  .btn-lg {
+    padding: 1.15rem 2.25rem;
+  }
+
+  .btn-primary {
+    @apply border-ink bg-ink text-canvas hover:bg-ink/90 hover:shadow-lift;
+  }
+
+  .btn-accent {
+    @apply border-accent bg-accent text-accent-ink hover:brightness-95 hover:shadow-lift;
+  }
+
+  .btn-outline {
+    @apply border-ink/25 bg-transparent text-ink hover:border-ink hover:bg-ink hover:text-canvas;
+  }
+
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-ink hover:bg-ink/5;
+  }
+
+  .btn-light {
+    @apply border-canvas/30 bg-transparent text-canvas hover:bg-canvas hover:text-ink;
+  }
+
+  .btn-on-ink {
+    @apply border-canvas bg-canvas text-ink hover:bg-canvas/90;
+  }
+
+  /* Links ------------------------------------------------------------------ */
+  .link-underline {
+    @apply relative inline-block after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-current after:transition-transform after:duration-300 after:ease-editorial hover:after:origin-left hover:after:scale-x-100;
+  }
+
+  .link-quiet {
+    @apply text-muted underline decoration-line underline-offset-4 transition-colors hover:text-ink hover:decoration-ink;
+  }
+
+  /* Forms ------------------------------------------------------------------ */
+  .label {
+    @apply mb-1.5 block text-[11px] font-medium uppercase tracking-[0.12em] text-muted;
+  }
+
+  .input {
+    @apply w-full border-0 border-b border-line bg-transparent px-0 py-2.5 text-[15px] text-ink transition-colors placeholder:text-muted/60 focus:border-ink focus:outline-none focus:ring-0;
+  }
+
+  .input-boxed {
+    @apply w-full border border-line bg-surface px-3.5 py-2.5 text-[14px] text-ink transition-colors placeholder:text-muted/50 focus:border-ink focus:outline-none;
+    border-radius: var(--r-sm);
+  }
+
+  .select-boxed {
+    @apply input-boxed appearance-none bg-[length:14px] bg-[right_0.9rem_center] bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%236F6A60' stroke-width='1.3'%3E%3Cpath d='M3 6l5 5 5-5'/%3E%3C/svg%3E");
+  }
+
+  .checkbox {
+    @apply h-4 w-4 border border-line bg-surface text-ink focus:ring-0 focus:ring-offset-0;
+    border-radius: 1px;
+  }
+
+  /* Surfaces --------------------------------------------------------------- */
+  .panel {
+    @apply border border-line bg-surface;
+    border-radius: var(--r-sm);
+  }
+
+  .hairline {
+    @apply border-t border-line;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 border border-line px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted;
+    border-radius: var(--r-sm);
+  }
+
+  .status-dot {
+    @apply inline-block h-1.5 w-1.5 rounded-full;
+  }
+
+  /* Product media ---------------------------------------------------------- */
+  .media-frame {
+    @apply relative overflow-hidden bg-[rgb(var(--c-line)/0.35)];
+    border-radius: var(--r-sm);
+  }
+
+  .media-frame img {
+    @apply h-full w-full object-cover transition-transform duration-[900ms] ease-editorial;
+  }
+
+  .media-hover:hover img {
+    transform: scale(1.035);
+  }
+
+  /* Tables ----------------------------------------------------------------- */
+  .data-table {
+    @apply w-full border-collapse text-left text-[13px];
+  }
+
+  .data-table th {
+    @apply border-b border-line px-3 py-2.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted;
+  }
+
+  .data-table td {
+    @apply border-b border-line/70 px-3 py-3 align-middle;
+  }
+
+  .data-table tbody tr {
+    @apply transition-colors hover:bg-ink/[0.025];
+  }
+
+  /* Scroll reveal ---------------------------------------------------------- */
+  .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  .grain-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.28'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+  }
+}
+
+/* Turn off non-essential motion for people who ask for it. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
