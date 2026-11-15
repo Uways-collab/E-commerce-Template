@@ -119,6 +119,7 @@ export default async function CheckoutPage() {
           signedIn={Boolean(user)}
           bankDetails={settings.commerce.payments.bankTransfer}
           codNote={settings.commerce.payments.codNote}
+          supportEmail={settings.contact.email}
         />
       </div>
     </div>

@@ -46,6 +46,7 @@ export default function CheckoutForm({
   signedIn,
   bankDetails,
   codNote,
+  supportEmail,
 }: {
   lines: CheckoutLine[];
   subtotalCents: number;
@@ -73,6 +74,7 @@ export default function CheckoutForm({
   };
   signedIn: boolean;
   bankDetails: { bankName: string; accountName: string; accountNumber: string; instructions: string };
+  supportEmail: string;
   codNote: string;
 }) {
   const [state, formAction, pending] = useActionState(placeOrderAction, initialState);
@@ -485,7 +487,7 @@ export default function CheckoutForm({
 
         <div className="mt-3 border border-line px-4 py-3 text-[11px] leading-relaxed text-muted">
           Need help? Email{" "}
-          <a href="mailto:hello@productprohub.com" className="underline underline-offset-4 hover:text-ink">
+          <a href={`mailto:${supportEmail}`} className="underline underline-offset-4 hover:text-ink">
             our client care team
           </a>{" "}
           — replies within one business day.

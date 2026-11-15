@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useTransition } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
 import { removeLineAction, setQuantityAction } from "@/app/actions/cart";
@@ -11,6 +11,52 @@ import { cn } from "@/lib/utils";
 export default function CartDrawer({ freeShippingThresholdLabel }: { freeShippingThresholdLabel: string }) {
   const { isOpen, closeCart, snapshot, loading, refresh, itemCount, notify } = useCart();
   const [pending, startTransition] = useTransition();
+  const panelRef = useRef<HTMLElement | null>(null);
+
+  // Modal behaviour: Escape closes, focus moves into the panel, Tab cycles
+  // inside it, and focus returns to the trigger when the drawer closes.
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    const focusable = () =>
+      Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((element) => element.offsetParent !== null);
+
+    focusable()[0]?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeCart();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = overflow;
+      previouslyFocused?.focus?.();
+    };
+  }, [isOpen, closeCart]);
 
   if (!isOpen) return null;
 
@@ -38,7 +84,11 @@ export default function CartDrawer({ freeShippingThresholdLabel }: { freeShippin
         onClick={closeCart}
         className="absolute inset-0 animate-fade-in bg-ink/30 backdrop-blur-[2px]"
       />
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-[440px] animate-slide-in flex-col bg-canvas shadow-lift">
+      <aside
+        ref={panelRef}
+        tabIndex={-1}
+        className="absolute right-0 top-0 flex h-full w-full max-w-[440px] animate-slide-in flex-col bg-canvas shadow-lift"
+      >
         <header className="flex items-center justify-between border-b border-line px-5 py-4">
           <div className="flex items-baseline gap-2">
             <h2 className="font-display text-[22px] leading-none">Your basket</h2>

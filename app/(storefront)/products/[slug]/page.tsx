@@ -1,3 +1,4 @@
+import { jsonLdString } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -19,7 +20,9 @@ type Params = Promise<{ slug: string }>;
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const [product, settings] = await Promise.all([Promise.resolve(getProductBySlug(slug)), getSettings()]);
-  if (!product) return { title: "Piece not found" };
+  // Throwing here (before the body streams) is what lets Next answer with a
+  // real 404 status instead of a 200 page that merely looks like one.
+  if (!product) notFound();
 
   const title = product.seoTitle ?? product.name;
   const description =
@@ -56,7 +59,9 @@ export default async function ProductPage({ params }: { params: Params }) {
   const cheapest = [...deliveryMethods].sort((a, b) => a.priceCents - b.priceCents)[0];
   const deliveryNote = cheapest
     ? `Dispatched within 24 hours. ${cheapest.label} from ${money(cheapest.priceCents)} (${cheapest.minDays}–${cheapest.maxDays} days). Complimentary over ${money(settings.commerce.freeShippingThresholdCents)}.`
-    : "Dispatched within 24 hours from our Lagos atelier.";
+    : settings.contact.city
+      ? `Dispatched within 24 hours from our ${settings.contact.city} studio.`
+      : "Dispatched within 24 hours.";
 
   const enabledPayments = settings.commerce.payments.enabled.filter((method) => providerConfigured(method));
 
@@ -101,7 +106,7 @@ export default async function ProductPage({ params }: { params: Params }) {
 
   return (
     <div className="page-shell">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
 
       <nav aria-label="Breadcrumb" className="pt-6 text-[11px] uppercase tracking-[0.12em] text-muted">
         <ol className="flex flex-wrap items-center gap-2">

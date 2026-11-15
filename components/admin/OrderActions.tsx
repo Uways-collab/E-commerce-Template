@@ -26,7 +26,8 @@ export function StatusForm({
 }: {
   orderId: string;
   status: string;
-  options: string[];
+  /** Only the transitions the lifecycle allows, plus the current status. */
+  options: { value: string; label: string }[];
 }) {
   const [state, formAction, pending] = useActionState(updateOrderStatusAction, initial);
 
@@ -40,8 +41,8 @@ export function StatusForm({
           </label>
           <select id="status" name="status" defaultValue={status} className="select-boxed !w-40">
             {options.map((option) => (
-              <option key={option} value={option}>
-                {option}
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>

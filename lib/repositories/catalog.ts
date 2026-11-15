@@ -271,9 +271,11 @@ function filterClause(filters: ProductFilters) {
 
 export function listProducts(filters: ProductFilters = {}): { products: Product[]; total: number } {
   const { clause, params } = filterClause(filters);
-  const sort = SORT_SQL[filters.sort ?? "featured"];
-  const limit = Math.min(Math.max(filters.limit ?? 24, 1), 100);
-  const offset = Math.max(filters.offset ?? 0, 0);
+  // Never interpolate an unvalidated sort/limit/offset into SQL: an unknown
+  // value used to produce `ORDER BY undefined` and a 500.
+  const sort = SORT_SQL[filters.sort ?? "featured"] ?? SORT_SQL.featured;
+  const limit = Number.isFinite(filters.limit) ? Math.min(Math.max(Math.trunc(filters.limit as number), 1), 100) : 24;
+  const offset = Number.isFinite(filters.offset) ? Math.max(Math.trunc(filters.offset as number), 0) : 0;
 
   const rows = db().all<Record<string, unknown>>(
     `${PRODUCT_SELECT} ${clause} ORDER BY ${sort} LIMIT ${limit} OFFSET ${offset}`,

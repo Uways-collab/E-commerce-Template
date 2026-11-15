@@ -5,6 +5,7 @@ import { listBanners } from "@/lib/repositories/marketing";
 import AdminShell from "@/components/admin/AdminShell";
 import BannerForm from "@/components/admin/BannerForm";
 import { deleteBannerAction } from "@/app/actions/admin-marketing";
+import ConfirmSubmit from "@/components/admin/ConfirmSubmit";
 
 export const metadata = { title: "Banners" };
 
@@ -51,7 +52,12 @@ export default async function AdminBannersPage({
                 </Link>
                 <form action={deleteBannerAction}>
                   <input type="hidden" name="id" value={banner.id} />
-                  <button className="text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-danger">Delete</button>
+                  <ConfirmSubmit
+                    message="Delete this banner? It disappears from the storefront immediately."
+                    className="text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-danger"
+                  >
+                    Delete
+                  </ConfirmSubmit>
                 </form>
               </div>
             </div>

@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { newId, orderNumber, parseJson } from "@/lib/utils";
 import type { Totals } from "@/lib/pricing";
+import { transitionError } from "@/lib/order-status";
 
 export type OrderStatus =
   | "pending"
@@ -356,8 +357,17 @@ export function updateOrderStatus(orderId: string, status: OrderStatus, note?: s
   const order = getOrderById(orderId);
   if (!order) return null;
 
+  // Defence in depth: the action validates first, but every caller of the
+  // repository is held to the same lifecycle rules.
+  const blocked = transitionError(order, status);
+  if (blocked) throw new Error(blocked);
+
   db().transaction(() => {
     db().run("UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?", [status, orderId]);
+    // A refund is money leaving the business: keep the payment record honest.
+    if (status === "refunded" && order.paymentStatus === "paid") {
+      db().run("UPDATE orders SET payment_status = 'refunded' WHERE id = ?", [orderId]);
+    }
     const labels: Record<OrderStatus, string> = {
       pending: "Awaiting payment",
       processing: "Preparing your order",

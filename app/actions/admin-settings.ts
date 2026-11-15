@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { normaliseImageSource } from "@/lib/images";
 import {
   CURRENCIES,
   DEFAULT_SETTINGS,
@@ -25,6 +26,14 @@ export interface SettingsState {
 
 const str = (formData: FormData, key: string, fallback = "") =>
   formData.has(key) ? String(formData.get(key) ?? "").trim() : fallback;
+
+/** Optional image fields: empty stays empty, anything invalid is discarded. */
+const safeImage = (formData: FormData, key: string, fallback = "") => {
+  if (!formData.has(key)) return fallback;
+  const raw = String(formData.get(key) ?? "").trim();
+  if (!raw) return "";
+  return normaliseImageSource(raw) ?? fallback;
+};
 
 const num = (formData: FormData, key: string, fallback = 0) => {
   if (!formData.has(key)) return fallback;
@@ -80,9 +89,9 @@ export async function saveSettingsAction(_prev: SettingsState | null, formData: 
         legalName: str(formData, "legalName", current.brand.legalName),
         tagline: str(formData, "tagline", current.brand.tagline),
         description: str(formData, "description", current.brand.description),
-        logoUrl: str(formData, "logoUrl", current.brand.logoUrl),
-        faviconUrl: str(formData, "faviconUrl", current.brand.faviconUrl),
-        ogImage: str(formData, "ogImage", current.brand.ogImage),
+        logoUrl: safeImage(formData, "logoUrl", current.brand.logoUrl),
+        faviconUrl: safeImage(formData, "faviconUrl", current.brand.faviconUrl),
+        ogImage: safeImage(formData, "ogImage", current.brand.ogImage),
       };
       break;
     }

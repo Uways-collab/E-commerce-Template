@@ -14,6 +14,10 @@ export default async function AdminLoginPage() {
   const [user, settings] = await Promise.all([getSessionUser(), getSettings()]);
   if (isAdmin(user)) redirect("/admin");
 
+  // Credentials are a development convenience, never shipped to production.
+  const showDemoCredentials = process.env.NODE_ENV !== "production";
+  const demoEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@productprohub.com";
+
   return (
     <div className="grid min-h-screen bg-canvas lg:grid-cols-[1fr_1.1fr]">
       <div className="flex items-center justify-center px-5 py-14 sm:px-10">
@@ -33,16 +37,22 @@ export default async function AdminLoginPage() {
           <div className="mt-8">
             <LoginForm next="/admin" />
           </div>
-          <p className="mt-6 border-t border-line pt-4 text-[11px] leading-relaxed text-muted">
-            Demo credentials: <span className="text-ink">admin@productprohub.com</span> /{" "}
-            <span className="text-ink">Admin!2345</span>
-          </p>
+          {showDemoCredentials ? (
+            <p className="mt-6 border-t border-line pt-4 text-[11px] leading-relaxed text-muted">
+              Demo credentials (development only):{" "}
+              <span className="text-ink">{demoEmail}</span> / <span className="text-ink">Admin!2345</span>
+            </p>
+          ) : (
+            <p className="mt-6 border-t border-line pt-4 text-[11px] leading-relaxed text-muted">
+              Staff access only. Sign-ins are rate limited and recorded.
+            </p>
+          )}
         </div>
       </div>
       <div className="relative hidden bg-ink lg:block">
         <div className="absolute inset-0 flex flex-col justify-between p-10 text-canvas">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-canvas/50">Product Pro Hub</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-canvas/50">{settings.brand.name}</p>
             <p className="mt-4 max-w-sm font-display text-[36px] leading-[1.05]">
               One template.
               <br />

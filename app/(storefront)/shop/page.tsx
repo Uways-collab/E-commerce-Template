@@ -3,15 +3,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { listCategories, listProducts, priceBounds, type ProductSort } from "@/lib/repositories/catalog";
+import { listCategories, listProducts, priceBounds } from "@/lib/repositories/catalog";
 import { listBanners } from "@/lib/repositories/marketing";
 import ProductCard from "@/components/shop/ProductCard";
 import Pagination from "@/components/shop/Pagination";
 import { ShopFilters, SortSelect } from "@/components/shop/ShopControls";
 import { formatMoney, cn } from "@/lib/utils";
+import { parseShopQuery, SHOP_SORTS } from "@/lib/shop-query";
 
 const PAGE_SIZE = 12;
-const SORTS: { label: string; value: ProductSort }[] = [
+const SORTS: { label: string; value: (typeof SHOP_SORTS)[number] }[] = [
   { label: "Featured", value: "featured" },
   { label: "Newest", value: "newest" },
   { label: "Price: low to high", value: "price-asc" },
@@ -42,24 +43,14 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 export default async function ShopPage({ searchParams }: { searchParams: SearchParams }) {
   const [params, settings] = await Promise.all([searchParams, getSettings()]);
-  const str = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : undefined);
-
-  const categorySlug = str("category");
-  const collection = str("collection");
-  const q = str("q");
-  const price = str("price");
-  const sort = (str("sort") as ProductSort) ?? "featured";
-  const inStockOnly = str("stock") === "in";
-  const onSale = str("sale") === "true";
-  const page = Math.max(1, Number.parseInt(str("page") ?? "1", 10) || 1);
-
-  let minPriceCents: number | undefined;
-  let maxPriceCents: number | undefined;
-  if (price) {
-    const [min, max] = price.split("-");
-    if (min) minPriceCents = Number(min);
-    if (max) maxPriceCents = Number(max);
-  }
+  const query = parseShopQuery(params as Record<string, string | string[] | undefined>);
+  const { category: categorySlug, collection, q, sort, inStockOnly, onSale, page } = query;
+  const { minPriceCents, maxPriceCents } = query;
+  // Canonical price band string for the filter UI and pagination links.
+  const price =
+    minPriceCents !== undefined || maxPriceCents !== undefined
+      ? `${minPriceCents ?? 0}-${maxPriceCents ?? ""}`
+      : undefined;
 
   const money = (value: number) => formatMoney(value, settings.locale.currency, settings.locale.locale);
 

@@ -69,7 +69,7 @@ export default async function ConfirmationPage({
         </h1>
         <p className="mt-3 max-w-xl text-[13.5px] leading-relaxed text-muted">
           {paid
-            ? `We’ve emailed a receipt to ${order.email}. Your pieces are being prepared at the Lagos atelier and you’ll receive tracking as soon as they ship.`
+            ? `We’ve emailed a receipt to ${order.email}. Your pieces are being prepared and you’ll receive tracking as soon as they ship.`
             : awaitingTransfer
               ? `We’ve reserved your pieces and emailed the details to ${order.email}. Your order ships as soon as the transfer is confirmed — usually within one business day.`
               : order.paymentMethod === "cod"
@@ -77,6 +77,12 @@ export default async function ConfirmationPage({
                 : `Your order is saved but payment has not been confirmed. Complete payment to release it for dispatch.`}
         </p>
 
+        {notice === "unconfirmed" && !paid && (
+          <div className="mt-6 border border-warning/30 bg-warning/[0.05] px-4 py-3 text-[12.5px] text-ink">
+            We couldn’t reach the payment provider to confirm this payment yet. Your order is saved and nothing has
+            been charged twice — refresh this page in a moment, or contact us and we’ll check it manually.
+          </div>
+        )}
         {notice === "failed" && !paid && (
           <div className="mt-6 border border-danger/30 bg-danger/[0.04] px-4 py-3 text-[12.5px] text-danger">
             The payment was not completed, so your order has not been marked as paid and will not ship yet.

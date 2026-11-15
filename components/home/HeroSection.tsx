@@ -3,7 +3,14 @@ import Link from "next/link";
 import type { HeroSection as HeroData } from "@/lib/settings";
 import { ArrowRight } from "lucide-react";
 
-export default function HeroSection({ section }: { section: HeroData }) {
+export default function HeroSection({
+  section,
+  tagline,
+}: {
+  section: HeroData;
+  /** Brand tagline from Store Settings — keeps marketing copy out of the code. */
+  tagline: string;
+}) {
   return (
     <section className="relative overflow-hidden">
       <div className="page-shell">
@@ -39,9 +46,9 @@ export default function HeroSection({ section }: { section: HeroData }) {
             )}
           </div>
           <p className="max-w-xs text-[12.5px] leading-relaxed text-muted lg:hidden">{section.body}</p>
-          <p className="hidden text-[10px] uppercase tracking-[0.2em] text-muted lg:block">
-            SS26 — Made in Lagos
-          </p>
+          {tagline && (
+            <p className="hidden text-[10px] uppercase tracking-[0.2em] text-muted lg:block">{tagline}</p>
+          )}
         </div>
       </div>
 
@@ -64,9 +71,7 @@ export default function HeroSection({ section }: { section: HeroData }) {
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-ink/25 to-transparent" />
           <div className="absolute bottom-4 left-4 flex items-center gap-3 bg-canvas px-4 py-2.5 sm:bottom-6 sm:left-6">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-            <p className="text-[10px] uppercase tracking-[0.16em] text-ink">
-              The Linen Edit — now in the atelier
-            </p>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-ink">{section.eyebrow}</p>
           </div>
         </div>
       </div>

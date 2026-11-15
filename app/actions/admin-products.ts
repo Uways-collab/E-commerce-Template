@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
+import { normaliseImageSource, sanitizeImageList } from "@/lib/images";
 import {
   deleteCategory,
   deleteProduct,
@@ -61,6 +62,13 @@ function parseVariants(raw: FormDataEntryValue | null) {
     .filter((variant) => variant.size || variant.colorName);
 }
 
+function sanitiseOptionalImage(raw: FormDataEntryValue | null): string | null {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+  const normalised = normaliseImageSource(value);
+  return normalised;
+}
+
 export async function saveProductAction(_prev: AdminActionState | null, formData: FormData): Promise<AdminActionState> {
   await requireAdmin();
 
@@ -80,9 +88,13 @@ export async function saveProductAction(_prev: AdminActionState | null, formData
     return { error: parsed.error.issues[0]?.message ?? "Please check the product details." };
   }
 
-  const images = parseJson<string[]>(formData.get("images"), []).filter(Boolean);
+  const rawImages = parseJson<unknown[]>(formData.get("images"), []);
+  const images = sanitizeImageList(rawImages);
   if (!images.length) {
-    return { error: "Add at least one product image." };
+    return { error: "Add at least one product image — upload a file or paste an https:// link." };
+  }
+  if (images.length !== rawImages.filter(Boolean).length) {
+    return { error: "One of the image links is not allowed. Use an uploaded image or an https:// URL." };
   }
 
   const variants = parseVariants(formData.get("variants"));
@@ -149,7 +161,7 @@ export async function saveCategoryAction(_prev: AdminActionState | null, formDat
     name,
     slug: String(formData.get("slug") ?? "") || undefined,
     description: String(formData.get("description") ?? "") || null,
-    image: String(formData.get("image") ?? "") || null,
+    image: sanitiseOptionalImage(formData.get("image")),
     sortOrder: Number(formData.get("sortOrder") ?? 0) || 0,
     isActive: formData.get("isActive") !== "false",
   });

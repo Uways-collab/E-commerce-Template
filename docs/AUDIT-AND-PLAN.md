@@ -91,7 +91,7 @@ Verified properties worth protecting:
 | --- | --- | --- | --- | --- |
 | S1 | ~~**Critical**~~ **Resolved (partly)** | Production dependency advisories. `next` upgraded 15.5.4 → **15.5.29** (critical RCE + DoS + source-exposure advisories cleared). Two remain — `postcss` (2 high, 2 moderate) and one moderate `next` advisory that is the *same* postcss dependency — and both are only fixable by a **major** upgrade to Next 16.4.6. | `npm audit --omit=dev` → 0 critical, 0 high, 1 moderate (before 15.5.29: 1 critical, 2 high) | Accepted for now: the postcss advisories require attacker-controlled CSS / `sourceMappingURL` input, and this app only processes its own stylesheet at build time — it never accepts CSS from users. Follow-up: schedule the Next 16 major upgrade (Phase 4) so the advisories clear at the source. |
 | S2 | **Critical (ops)** | `npm run db:seed` **deletes all commerce tables** before seeding. `docs/DEPLOYMENT.md` tells operators to run it. A mis-run on a live store destroys data. The seeded admin password also falls back to `Admin!2345` when `SEED_ADMIN_PASSWORD` is unset. | `scripts/seed.mjs:79-82`, `:250` | Refuse to seed a non-empty DB unless `--force`/`SEED_FORCE=1`; refuse the default password when `NODE_ENV=production`; update DEPLOYMENT.md wording **Seed guard done:** production runs refuse to seed without `SEED_ADMIN_PASSWORD` (≥10 chars); the destructive `--force` path still requires the explicit flag. Follow-up: make `db:reset` prompt or require `--force` in docs. |
-| S3 | High | **No security headers**: no CSP, `X-Frame-Options`/`frame-ancestors`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, or HSTS. Clickjacking of checkout/admin is possible; same-origin media is served without `nosniff`. | `curl -I /` shows only `Vary`, `link`, `Cache-Control`; `next.config.ts` has no `headers()` | Add `headers()` in `next.config.ts`: CSP (self + provider origins, `frame-ancestors 'none'`), nosniff, Referrer-Policy `strict-origin-when-cross-origin`, Permissions-Policy, HSTS (prod) |
+| S3 | High | **No security headers**: no CSP, `X-Frame-Options`/`frame-ancestors`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, or HSTS. Clickjacking of checkout/admin is possible; same-origin media is served without `nosniff`. | `curl -I /` shows only `Vary`, `link`, `Cache-Control`; `next.config.ts` has no `headers()` | Add `headers()` in `next.config.ts`: CSP (self + provider origins, `frame-ancestors 'none'`), nosniff, Referrer-Policy `strict-origin-when-cross-origin`, Permissions-Policy, HSTS (prod) — **Fixed:** see Phase 1 status. |
 | S4 | High | `retryPaymentAction` has **no authorisation**: any visitor who knows/guesses an order number can re-initialise a provider payment session for it. The `/checkout/retry` *page* is gated, but server actions are directly invokable. | `app/actions/payments.ts:25-30` vs gated page | Require `hasOrderAccess(orderNumber)` or `order.userId === session.id` inside the action **Fixed:** owner or signed capability cookie required; verified by direct action invocation. |
 | S5 | Medium | `reorderAction` passes an empty ownership filter for guests (`getOrderByNumber(n, {})`), so anyone with an order number can copy its items into their cart. | `app/actions/orders.ts:15` | Require the same capability/ownership check; return a friendly error **Fixed:** session required, order scoped to the signed-in user, cancelled/refunded orders refused. |
 | S6 | Medium | The guest-order capability cookie `pph_orders` is **unsigned JSON**; a visitor can add arbitrary order numbers. Only the unguessability of order numbers (6 chars, 32-char alphabet) protects other guests. | `lib/order-access.ts:21-30` | Sign the list with HMAC (`AUTH_SECRET`), verify on read; keep `httpOnly` |
@@ -134,15 +134,15 @@ random identifiers; `markOrderPaid` is idempotent.
 
 | # | Interaction | Behaviour today | Fix |
 | --- | --- | --- | --- |
-| I1 | Pasting an external image URL (allowed by the uploader's "paste URL" input) | Page renders, but the optimiser rejects it: `GET /_next/image?url=https://example.com/…` → **400** (`"url" parameter is not allowed`), so the image is broken | Either allow-list hosts via `images.remotePatterns`, or validate to `/api/media/…` and same-origin paths in the uploader + actions (recommended) |
-| I2 | Destructive admin actions (delete product/category/coupon/banner/review/message) | One click, no confirmation, no success feedback — they redirect or reload silently | Add a small confirm dialog + `{ok,message}` states |
-| I3 | Order status transitions | Any status → any status (e.g. delivered → pending) | Add an allowed-transition matrix in `updateOrderStatus`, surface valid options only |
+| I1 | Pasting an external image URL (allowed by the uploader's "paste URL" input) | Page renders, but the optimiser rejects it: `GET /_next/image?url=https://example.com/…` → **400** (`"url" parameter is not allowed`), so the image is broken | Either allow-list hosts via `images.remotePatterns`, or validate to `/api/media/…` and same-origin paths in the uploader + actions (recommended) — **Fixed:** `lib/images.ts` validation + https-only remote patterns. |
+| I2 | Destructive admin actions (delete product/category/coupon/banner/review/message) | One click, no confirmation, no success feedback — they redirect or reload silently | Add a small confirm dialog + `{ok,message}` states — **Fixed:** `ConfirmSubmit`. |
+| I3 | Order status transitions | Any status → any status (e.g. delivered → pending) | Add an allowed-transition matrix in `updateOrderStatus`, surface valid options only — **Fixed:** `lib/order-status.ts`. |
 | I4 | Settings image fields | Ask for a URL with no uploader — a dead end for operators who only have a file | Wire the uploader (or a media picker) into `SettingsPanel` |
 | I5 | Cart drawer | `role="dialog"` and `aria-modal` are present, but no Escape handler and no focus trap (the mobile menu does handle Escape) | Escape to close, focus the panel, restore focus, trap Tab |
-| I6 | Product reviews | Same user can post unlimited reviews for the same product (only a 5/hour limit) | Unique `(product_id, user_id)` + friendly message |
-| I7 | `/checkout/verify` | A provider outage marks the order `failed` (and `markPaymentFailed` can be triggered by anyone holding an order number) | Distinguish "unreachable" (stays `pending`, note added) from "provider says failed"; require capability cookie to mutate state |
+| I6 | Product reviews | Same user can post unlimited reviews for the same product (only a 5/hour limit) | Unique `(product_id, user_id)` + friendly message — **Fixed:** unique index + guard. |
+| I7 | `/checkout/verify` | A provider outage marks the order `failed` (and `markPaymentFailed` can be triggered by anyone holding an order number) | Distinguish "unreachable" (stays `pending`, note added) from "provider says failed"; require capability cookie to mutate state — **Fixed:** capability + provider match + inconclusive handling. |
 | I8 | Coupon form | The value label reflects the *saved* kind, not the currently selected one | Read the select state in the client component |
-| I9 | `/shop?price=abc` (and any malformed filter) | Silently produces an empty/undefined price filter — no sanitisation | Parse with `Number.isFinite`, ignore invalid input |
+| I9 | `/shop?price=abc` (and any malformed filter) | Silently produces an empty/undefined price filter — no sanitisation | Parse with `Number.isFinite`, ignore invalid input — **Fixed:** `lib/shop-query.ts`. |
 | I10 | Admin lists (reviews 200, messages 200, subscribers 500) | Hard caps, no pagination | Add pagination for those three |
 | I11 | Subscribers CSV export | Built as a `data:` URL — breaks on large lists/special characters | Serve via a route handler with `text/csv` |
 | I12 | Dead code / smells | `void settings` in `retryPaymentAction` and `sitemap.ts`; no `app/global-error.tsx`; `notFound()` on storefront pages returned **HTTP 200** in dev (soft 404 — must be confirmed against a production build) | Remove smells; add `global-error.tsx`; verify 404 status in `next start` and, if needed, move `notFound()` before the first `await` or set `dynamic = 'force-static'` on the not-found route |
@@ -198,6 +198,42 @@ Two incidental defects were found and fixed while writing the tests:
 | `test/pricing.test.ts` | Coupon validation (inactive/expired/future/min spend/usage caps), percent/fixed/free-shipping maths, free-shipping threshold, delivery-method re-resolution |
 | `test/redirects.test.ts` | `safeNext` against open-redirect payloads |
 | `test/sign.test.ts` | Seal/open round-trip, tamper detection, constant-time compare |
+
+#### Phase 1 status: **mostly complete**
+
+| Task | Result | Verification |
+| --- | --- | --- |
+| Security headers | CSP, `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `COOP`, HSTS (production only), and `remotePatterns` limited to https | `curl -I` on storefront, admin and `/api/media/*`; HSTS present only in `next start` |
+| Inline style/script trade-off | Documented in `next.config.ts`: theme tokens are inline, so `style-src 'unsafe-inline'` is required; `script-src` allows inline in this deployment mode (a nonce needs middleware — deferred, not silently dropped) | comment block in the config |
+| JSON-LD escaping | `lib/seo.ts` escapes `<`, `>`, `&`, U+2028/9 before interpolation on home, product and journal pages | `test/seo.test.ts` (3 tests) |
+| Constant-time webhook compare | Flutterwave `verif-hash` now uses the shared `safeEqual`; Paystack already used `timingSafeEqual` | live 401/404 checks with a temporary secret |
+| Image host allow-list | `images.remotePatterns` accepts https only, so the optimiser no longer 400s on a valid CDN URL | config; sandbox has no egress, so end-to-end fetch is unverified (see I1) |
+| Session versioning | Delivered in Phase 0 | harness tests |
+| Rate-limiter interface + IP keys | **Not done** — still the in-process Map (S10) | — |
+| Upload magic-byte sniff | **Not done** (S13) — sharp still rejects non-images, but the MIME check is client-declared | — |
+
+#### Phase 2 status: **mostly complete**
+
+| Item | Result | Verification |
+| --- | --- | --- |
+| I1 external images | `lib/images.ts` validates every pasted source (`/path` or `https://` only; rejects `javascript:`, `data:`, `//host`, whitespace); wired into products, categories, banners and brand images | `test/images.test.ts` |
+| I2 delete confirmations | `ConfirmSubmit` client button for products, categories, coupons, banners and messages; copy names the item | admin pages render + build |
+| I3 order transitions | `lib/order-status.ts` matrix enforced in the action **and** the repository; admin select only offers legal moves; COD delivery records the payment automatically | `test/order-status.test.ts` + live run through pending → processing → packed → shipped → delivered → refunded, with backwards jumps refused |
+| I6 review uniqueness | Partial unique index `reviews_user_product` + repository guard + friendly message | schema + repository; verified review submission path returns the message |
+| I7 payment verification | `/checkout/verify` now requires ownership/capability, refuses a provider that does not match the order, and only marks `failed` on a definitive provider answer (network/config problems leave the order untouched and show an "unconfirmed" notice) | live: forged cookie → 404, no cookie → 404, wrong provider → 404, unreachable provider → order stays `unpaid` |
+| I9 shop filters | `lib/shop-query.ts` validates every filter; unknown sort/limit/offset also sanitised inside `listProducts` | `test/shop-query.test.ts` + 11 malformed URLs all 200 (previously 500) |
+| I12 soft 404s | Root cause found: `app/(storefront)/loading.tsx` flushes the shell before `notFound()`, so the response was always 200. The skeleton is now scoped to `/shop`; storefront 404s return a real 404 status | `next start`: `/products/nope`, `/pages/nope`, `/journal/nope`, `/collections/nope`, `/checkout/confirmation/<unknown>` → 404 |
+| M14 brand copy | Hero tagline, hero badge and footer newsletter heading now come from settings; admin demo credentials are hidden in production and the admin login shows the configured brand name | code + admin login render |
+| I5 cart drawer | Escape closes, focus moves into the panel, Tab is trapped, background scroll locked, focus restored to the trigger | manual/typecheck (no browser automation in this environment) |
+| I8 coupon label, I10 pagination, I11 CSV route, I4 settings uploader, global-error | **Not done** — still open | — |
+
+### Defects found and fixed while verifying (Phase 1/2)
+
+* `computeTotals` trusted a caller-supplied delivery method (price included) — now re-resolved from settings.
+* `addToCart` silently capped quantities while claiming the full amount — the message now states what was added.
+* The coupon cookie survived checkout (kept showing "below minimum spend") — cart clearing now expires it explicitly.
+* `cookies().delete()` only emits a past `Expires`; session and coupon cookies now also send `Max-Age=0`.
+* Refunding an order left `payment_status = paid` — it now becomes `refunded`.
 
 ### Phase 1 — Hardening (≈1 day)
 

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { hasPurchased } from "@/lib/repositories/orders";
-import { createReview } from "@/lib/repositories/marketing";
+import { createReview, userReviewForProduct } from "@/lib/repositories/marketing";
 import { rateLimit } from "@/lib/rate-limit";
 
 export interface ReviewState {
@@ -43,15 +43,24 @@ export async function submitReviewAction(_prev: ReviewState | null, formData: Fo
     return { ok: false, message: "You’ve posted several reviews recently. Please try again later." };
   }
 
-  createReview({
-    productId: parsed.data.productId,
-    userId: user.id,
-    author: user.name,
-    rating: parsed.data.rating,
-    title: parsed.data.title || null,
-    body: parsed.data.body,
-    isVerified: hasPurchased(user.id, parsed.data.productId),
-  });
+  if (userReviewForProduct(parsed.data.productId, user.id)) {
+    return { ok: false, message: "You’ve already reviewed this piece — thank you." };
+  }
+
+  try {
+    createReview({
+      productId: parsed.data.productId,
+      userId: user.id,
+      author: user.name,
+      rating: parsed.data.rating,
+      title: parsed.data.title || null,
+      body: parsed.data.body,
+      isVerified: hasPurchased(user.id, parsed.data.productId),
+    });
+  } catch (error) {
+    console.error("submitReviewAction", error);
+    return { ok: false, message: "We couldn’t save your review. Please try again." };
+  }
 
   revalidatePath(`/products/${parsed.data.productSlug}`);
   return { ok: true, message: "Thank you — your review is published." };

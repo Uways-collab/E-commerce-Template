@@ -5,6 +5,7 @@ import { listCategories } from "@/lib/repositories/catalog";
 import AdminShell from "@/components/admin/AdminShell";
 import CategoryForm from "@/components/admin/CategoryForm";
 import { deleteCategoryAction } from "@/app/actions/admin-products";
+import ConfirmSubmit from "@/components/admin/ConfirmSubmit";
 
 export const metadata = { title: "Categories" };
 
@@ -82,12 +83,12 @@ export default async function AdminCategoriesPage({
                         </Link>
                         <form action={deleteCategoryAction}>
                           <input type="hidden" name="id" value={category.id} />
-                          <button
-                            type="submit"
+                          <ConfirmSubmit
+                            message={`Delete the ${category.name} category? Products stay, but lose this category.`}
                             className="text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-danger"
                           >
                             Delete
-                          </button>
+                          </ConfirmSubmit>
                         </form>
                       </div>
                     </td>

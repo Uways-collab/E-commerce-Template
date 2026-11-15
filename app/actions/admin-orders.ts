@@ -10,22 +10,13 @@ import {
   updateOrderStatus,
   type OrderStatus,
 } from "@/lib/repositories/orders";
-
-const STATUSES: OrderStatus[] = [
-  "pending",
-  "processing",
-  "packed",
-  "shipped",
-  "delivered",
-  "cancelled",
-  "refunded",
-];
+import { ORDER_STATUSES, settlesPaymentOnDelivery, transitionError } from "@/lib/order-status";
 
 const STATUS_MESSAGES: Record<OrderStatus, string> = {
   pending: "Order returned to awaiting payment.",
   processing: "Order marked as processing.",
   packed: "Order marked as packed.",
-  shipped: "Order marked as shipped.",
+  shipped: "Order marked as shipped — the customer now sees tracking.",
   delivered: "Order marked as delivered.",
   cancelled: "Order cancelled — stock returned to the catalogue.",
   refunded: "Order refunded — stock returned to the catalogue.",
@@ -53,13 +44,27 @@ export async function updateOrderStatusAction(
   const orderId = String(formData.get("orderId") ?? "");
   const status = String(formData.get("status") ?? "") as OrderStatus;
   const note = String(formData.get("note") ?? "").trim();
-  if (!orderId || !STATUSES.includes(status)) return { error: "Choose a valid status." };
+  if (!orderId || !ORDER_STATUSES.includes(status)) return { error: "Choose a valid status." };
 
   const order = getOrderById(orderId);
   if (!order) return { error: "That order no longer exists." };
   if (order.status === status) return { ok: true, message: `Order is already ${status}.` };
 
+  // Fulfilment is a one-way street; invalid jumps are refused with a reason.
+  const blocked = transitionError(order, status);
+  if (blocked) return { error: blocked };
+
   updateOrderStatus(orderId, status, note || undefined);
+
+  // Cash on delivery is settled at the doorstep, so delivering it also records
+  // the payment — otherwise the order would ship "paid: false" forever.
+  if (settlesPaymentOnDelivery(order, status)) {
+    markOrderPaid(orderId, {
+      reference: `COD-${order.orderNumber}`,
+      note: note || "Cash collected on delivery",
+    });
+  }
+
   refresh(orderId);
   return { ok: true, message: STATUS_MESSAGES[status] };
 }

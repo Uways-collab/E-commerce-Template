@@ -104,11 +104,19 @@ export interface PaymentVerification {
   message: string;
   reference: string | null;
   amount: number | null;
+  /**
+   * True when the provider could not give a definitive answer (not configured,
+   * network error, 5xx) as opposed to a clear "this payment failed". Callers
+   * must not mark an order as failed on an inconclusive result.
+   */
+  inconclusive?: boolean;
 }
 
 export async function verifyPaystack(reference: string, order: Order): Promise<PaymentVerification> {
   const secret = process.env.PAYSTACK_SECRET_KEY;
-  if (!secret) return { paid: false, message: "Paystack is not configured.", reference, amount: null };
+  if (!secret) {
+    return { paid: false, message: "Paystack is not configured.", reference, amount: null, inconclusive: true };
+  }
 
   try {
     const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
@@ -127,9 +135,10 @@ export async function verifyPaystack(reference: string, order: Order): Promise<P
     if (!response.ok || !payload?.status || !payload.data) {
       return {
         paid: false,
-        message: payload?.message ?? "Paystack could not verify this transaction.",
+        message: payload?.message ?? "Paystack could not verify this transaction yet.",
         reference,
         amount: null,
+        inconclusive: true,
       };
     }
 
@@ -151,7 +160,13 @@ export async function verifyPaystack(reference: string, order: Order): Promise<P
 
     return { paid: true, message: "Payment verified by Paystack.", reference: data.reference ?? reference, amount: data.amount };
   } catch {
-    return { paid: false, message: "Could not reach Paystack to verify this payment.", reference, amount: null };
+    return {
+      paid: false,
+      message: "Could not reach Paystack to verify this payment.",
+      reference,
+      amount: null,
+      inconclusive: true,
+    };
   }
 }
 
@@ -223,7 +238,9 @@ export async function verifyFlutterwave(
   expectedReference?: string | null,
 ): Promise<PaymentVerification> {
   const secret = process.env.FLUTTERWAVE_SECRET_KEY;
-  if (!secret) return { paid: false, message: "Flutterwave is not configured.", reference: transactionId, amount: null };
+  if (!secret) {
+    return { paid: false, message: "Flutterwave is not configured.", reference: transactionId, amount: null, inconclusive: true };
+  }
 
   try {
     const response = await fetch(
@@ -245,9 +262,10 @@ export async function verifyFlutterwave(
     if (!response.ok || payload?.status !== "success" || !payload.data) {
       return {
         paid: false,
-        message: payload?.message ?? "Flutterwave could not verify this transaction.",
+        message: payload?.message ?? "Flutterwave could not verify this transaction yet.",
         reference: transactionId,
         amount: null,
+        inconclusive: true,
       };
     }
 
@@ -274,7 +292,13 @@ export async function verifyFlutterwave(
 
     return { paid: true, message: "Payment verified by Flutterwave.", reference, amount: data.amount };
   } catch {
-    return { paid: false, message: "Could not reach Flutterwave to verify this payment.", reference: transactionId, amount: null };
+    return {
+      paid: false,
+      message: "Could not reach Flutterwave to verify this payment.",
+      reference: transactionId,
+      amount: null,
+      inconclusive: true,
+    };
   }
 }
 

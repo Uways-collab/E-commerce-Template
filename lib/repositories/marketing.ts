@@ -218,6 +218,14 @@ export function ratingBreakdown(productId: string): { rating: number; count: num
   }));
 }
 
+export function userReviewForProduct(productId: string, userId: string): Review | null {
+  const row = db().get<Record<string, unknown>>(
+    "SELECT * FROM reviews WHERE product_id = ? AND user_id = ? LIMIT 1",
+    [productId, userId],
+  );
+  return row ? mapReview(row) : null;
+}
+
 export function createReview(input: {
   productId: string;
   userId?: string | null;
@@ -227,6 +235,12 @@ export function createReview(input: {
   body: string;
   isVerified?: boolean;
 }): string {
+  // Enforced in the schema as a unique index too; checking here lets the UI
+  // explain the rule instead of surfacing a constraint error.
+  if (input.userId && userReviewForProduct(input.productId, input.userId)) {
+    throw new Error("You have already reviewed this product.");
+  }
+
   const id = newId("rev");
   db().run(
     `INSERT INTO reviews (id, product_id, user_id, author, rating, title, body, is_published, is_verified)

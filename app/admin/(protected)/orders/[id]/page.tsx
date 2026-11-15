@@ -7,10 +7,11 @@ import { formatDateTime, formatMoney } from "@/lib/utils";
 import AdminShell from "@/components/admin/AdminShell";
 import OrderStatusChip from "@/components/account/OrderStatusChip";
 import { ManualPaymentForm, StatusForm, TrackingForm } from "@/components/admin/OrderActions";
+import { ORDER_STATUS_LABELS, allowedStatuses } from "@/lib/order-status";
 
 export const metadata = { title: "Order detail" };
 
-const STATUS_OPTIONS = ["pending", "processing", "packed", "shipped", "delivered", "cancelled", "refunded"];
+
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, { user, settings, groups }] = await Promise.all([params, adminContext()]);
@@ -99,7 +100,14 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           <section className="border border-line bg-surface p-4">
             <h2 className="text-[10px] font-medium uppercase tracking-[0.14em]">Fulfilment</h2>
             <div className="mt-3">
-              <StatusForm orderId={order.id} status={order.status} options={STATUS_OPTIONS} />
+              <StatusForm
+                orderId={order.id}
+                status={order.status}
+                options={[order.status, ...allowedStatuses(order)].map((value) => ({
+                  value,
+                  label: `${ORDER_STATUS_LABELS[value]}${value === order.status ? " (current)" : ""}`,
+                }))}
+              />
             </div>
             <div className="mt-4">
               <TrackingForm

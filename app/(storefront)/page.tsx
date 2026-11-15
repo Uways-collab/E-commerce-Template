@@ -1,3 +1,4 @@
+import { jsonLdString } from "@/lib/seo";
 import type { Metadata } from "next";
 import { getSettings } from "@/lib/settings";
 import { listCategories } from "@/lib/repositories/catalog";
@@ -57,12 +58,12 @@ export default async function HomePage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
       {sections.map((section) => {
         switch (section.type) {
           case "hero":
-            return <HeroSection key={section.id} section={section} />;
+            return <HeroSection key={section.id} section={section} tagline={settings.brand.tagline} />;
           case "marquee":
             return <MarqueeSectionView key={section.id} section={section} />;
           case "categories":

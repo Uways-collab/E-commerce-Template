@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { formatDateTime, cn } from "@/lib/utils";
 import AdminShell from "@/components/admin/AdminShell";
 import { deleteMessageAction, updateMessageStatusAction } from "@/app/actions/admin-marketing";
+import ConfirmSubmit from "@/components/admin/ConfirmSubmit";
 
 export const metadata = { title: "Messages" };
 
@@ -74,9 +75,12 @@ export default async function AdminMessagesPage() {
               ))}
               <form action={deleteMessageAction} className="ml-auto">
                 <input type="hidden" name="id" value={message.id} />
-                <button className="text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-danger">
+                <ConfirmSubmit
+                  message={`Delete the message from ${message.name}? This cannot be undone.`}
+                  className="text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-danger"
+                >
                   Delete
-                </button>
+                </ConfirmSubmit>
               </form>
             </div>
           </article>

@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { getOrderByNumber, markOrderPaid, markPaymentFailed } from "@/lib/repositories/orders";
 import { verifyFlutterwave, verifyPaystack } from "@/lib/payments";
+import { getSessionUser } from "@/lib/auth";
+import { hasOrderAccess } from "@/lib/order-access";
 
 export const metadata = { title: "Verifying payment", robots: { index: false, follow: false } };
 
@@ -10,6 +12,12 @@ type SearchParams = Promise<Record<string, string | undefined>>;
  * Provider return URL. The shopper's browser lands here after paying, but the
  * browser is never trusted: the transaction is verified server-to-server with
  * the provider (correct amount + currency) before the order is marked paid.
+ *
+ * Two further guards matter because this page mutates an order:
+ *  1. the visitor must already hold the order (ownership or the capability
+ *     cookie set when the order was placed);
+ *  2. the provider must match the order's own payment method — the query string
+ *     cannot pick a different provider.
  */
 export default async function VerifyPaymentPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
@@ -19,7 +27,12 @@ export default async function VerifyPaymentPage({ searchParams }: { searchParams
   const order = getOrderByNumber(orderNumber);
   if (!order) notFound();
 
+  const [user, capability] = await Promise.all([getSessionUser(), hasOrderAccess(order.orderNumber)]);
+  const isOwner = Boolean(user && order.userId && order.userId === user.id);
+  if (!isOwner && !capability) notFound();
+
   const provider = params.provider ?? order.paymentMethod;
+  if (provider !== order.paymentMethod) notFound();
 
   if (provider === "paystack") {
     const reference = params.reference ?? order.paymentReference ?? order.orderNumber;
@@ -32,8 +45,12 @@ export default async function VerifyPaymentPage({ searchParams }: { searchParams
       });
       redirect(`/checkout/confirmation/${order.orderNumber}?payment=paid`);
     }
-    markPaymentFailed(order.id, verification.message);
-    redirect(`/checkout/confirmation/${order.orderNumber}?payment=failed`);
+    // A network blip must not brand the order as failed — only a definitive
+    // "no" from the provider does.
+    if (!verification.inconclusive) markPaymentFailed(order.id, verification.message);
+    redirect(
+      `/checkout/confirmation/${order.orderNumber}?payment=${verification.inconclusive ? "unconfirmed" : "failed"}`,
+    );
   }
 
   if (provider === "flutterwave") {
@@ -43,8 +60,7 @@ export default async function VerifyPaymentPage({ searchParams }: { searchParams
       redirect(`/checkout/confirmation/${order.orderNumber}?payment=failed`);
     }
     if (!transactionId) {
-      markPaymentFailed(order.id, "Flutterwave did not return a transaction reference.");
-      redirect(`/checkout/confirmation/${order.orderNumber}?payment=failed`);
+      redirect(`/checkout/confirmation/${order.orderNumber}?payment=unconfirmed`);
     }
     const verification = await verifyFlutterwave(transactionId, order, params.tx_ref ?? null);
     if (verification.paid) {
@@ -55,8 +71,10 @@ export default async function VerifyPaymentPage({ searchParams }: { searchParams
       });
       redirect(`/checkout/confirmation/${order.orderNumber}?payment=paid`);
     }
-    markPaymentFailed(order.id, verification.message);
-    redirect(`/checkout/confirmation/${order.orderNumber}?payment=failed`);
+    if (!verification.inconclusive) markPaymentFailed(order.id, verification.message);
+    redirect(
+      `/checkout/confirmation/${order.orderNumber}?payment=${verification.inconclusive ? "unconfirmed" : "failed"}`,
+    );
   }
 
   redirect(`/checkout/confirmation/${order.orderNumber}`);

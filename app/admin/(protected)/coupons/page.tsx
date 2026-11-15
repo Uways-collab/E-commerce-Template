@@ -5,6 +5,7 @@ import { formatDate, formatMoney } from "@/lib/utils";
 import AdminShell from "@/components/admin/AdminShell";
 import CouponForm from "@/components/admin/CouponForm";
 import { deleteCouponAction, toggleCouponAction } from "@/app/actions/admin-marketing";
+import ConfirmSubmit from "@/components/admin/ConfirmSubmit";
 
 export const metadata = { title: "Coupons" };
 
@@ -87,9 +88,12 @@ export default async function AdminCouponsPage({
                       </form>
                       <form action={deleteCouponAction}>
                         <input type="hidden" name="id" value={coupon.id} />
-                        <button className="text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-danger">
+                        <ConfirmSubmit
+                          message={`Delete coupon ${coupon.code}? Customers will no longer be able to use it.`}
+                          className="text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-danger"
+                        >
                           Delete
-                        </button>
+                        </ConfirmSubmit>
                       </form>
                     </div>
                   </td>

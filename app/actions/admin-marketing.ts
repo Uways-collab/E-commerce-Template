@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { normaliseImageSource } from "@/lib/images";
 import {
   deleteBanner,
   deleteCoupon,
@@ -84,7 +85,7 @@ export async function saveBannerAction(_prev: AdminState | null, formData: FormD
     title,
     eyebrow: String(formData.get("eyebrow") ?? "") || null,
     subtitle: String(formData.get("subtitle") ?? "") || null,
-    image: String(formData.get("image") ?? "") || null,
+    image: normaliseImageSource(formData.get("image")) ?? null,
     href: String(formData.get("href") ?? "") || null,
     ctaLabel: String(formData.get("ctaLabel") ?? "") || null,
     placement: (String(formData.get("placement") ?? "promo") as Banner["placement"]) ?? "promo",

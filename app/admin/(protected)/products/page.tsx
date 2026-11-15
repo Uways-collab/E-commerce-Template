@@ -5,6 +5,7 @@ import { listProducts } from "@/lib/repositories/catalog";
 import { formatMoney, cn } from "@/lib/utils";
 import AdminShell from "@/components/admin/AdminShell";
 import { deleteProductAction } from "@/app/actions/admin-products";
+import ConfirmSubmit from "@/components/admin/ConfirmSubmit";
 
 export const metadata = { title: "Products" };
 
@@ -161,12 +162,12 @@ export default async function AdminProductsPage({
                         </Link>
                         <form action={deleteProductAction}>
                           <input type="hidden" name="id" value={product.id} />
-                          <button
-                            type="submit"
+                          <ConfirmSubmit
+                            message={`Delete ${product.name}? This also removes its variants. Past orders keep their history.`}
                             className="text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-danger"
                           >
                             Delete
-                          </button>
+                          </ConfirmSubmit>
                         </form>
                       </div>
                     </td>

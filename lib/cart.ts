@@ -93,7 +93,15 @@ export async function readCouponCookie(): Promise<string | null> {
 export async function writeCouponCookie(code: string | null) {
   const jar = await cookies();
   if (!code) {
-    jar.delete(COUPON_COOKIE);
+    // `cookies().delete()` only emits a past `Expires` header; some clients
+    // (and libcurl) keep the cookie unless `Max-Age=0` is present too.
+    jar.set(COUPON_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
     return;
   }
   jar.set(COUPON_COOKIE, code.toUpperCase(), {
@@ -183,18 +191,30 @@ export async function addToCart(variantId: string, quantity = 1): Promise<{ ok: 
   const lines = await readCartCookie();
   const existing = lines.find((line) => line.v === variantId);
   const cap = Math.min(settings.commerce.maxQuantityPerLine, resolved.stock);
+  const before = existing?.q ?? 0;
+  const requested = Math.max(1, Math.trunc(quantity));
 
+  if (before >= cap) {
+    return { ok: false, message: `Only ${cap} available in that option.` };
+  }
+
+  const after = Math.min(cap, before + requested);
   if (existing) {
-    if (existing.q >= cap) {
-      return { ok: false, message: `Only ${cap} available in that option.` };
-    }
-    existing.q = Math.min(cap, existing.q + quantity);
+    existing.q = after;
   } else {
-    lines.push({ v: variantId, q: Math.min(cap, Math.max(1, quantity)) });
+    lines.push({ v: variantId, q: after });
   }
 
   await writeCartCookie(lines);
-  return { ok: true, message: `Added ${resolved.product.name} to your basket.` };
+
+  const added = after - before;
+  return {
+    ok: true,
+    message:
+      added < requested
+        ? `Only ${cap} available in that option — added ${added} to your basket.`
+        : `Added ${resolved.product.name} to your basket.`,
+  };
 }
 
 export async function removeCartLine(variantId: string) {

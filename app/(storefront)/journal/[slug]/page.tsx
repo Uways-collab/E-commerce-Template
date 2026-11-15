@@ -1,3 +1,4 @@
+import { jsonLdString } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
@@ -45,7 +46,7 @@ export default async function JournalPostPage({ params }: { params: Params }) {
 
   return (
     <article className="page-shell py-10 lg:py-14">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
       <div className="mx-auto max-w-3xl">
         <nav aria-label="Breadcrumb" className="text-[11px] uppercase tracking-[0.12em] text-muted">
           <ol className="flex items-center gap-2">

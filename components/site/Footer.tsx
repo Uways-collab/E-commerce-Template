@@ -116,7 +116,7 @@ export default function Footer({
         {showNewsletter && settings.commerce.newsletterEnabled && (
           <div className="grid gap-6 border-t border-line py-10 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:gap-16">
             <div>
-              <h2 className="font-display text-[24px] leading-tight">Letters from the atelier</h2>
+              <h2 className="font-display text-[24px] leading-tight">Notes from {settings.brand.name}</h2>
               <p className="mt-2 max-w-md text-[12.5px] leading-relaxed text-muted">
                 Seasonal edits, restock alerts and 10% off your first order. One letter a month — never noise.
               </p>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrderByNumber, markOrderPaid, markPaymentFailed } from "@/lib/repositories/orders";
+import { safeEqual } from "@/lib/sign";
 import { verifyFlutterwave } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
   }
 
   const providedHash = request.headers.get("verif-hash");
-  if (!providedHash || providedHash !== expectedHash) {
+  if (!providedHash || !safeEqual(providedHash, expectedHash)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 

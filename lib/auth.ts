@@ -83,7 +83,14 @@ export async function startSession(userId: string) {
 
 export async function endSession() {
   const jar = await cookies();
-  jar.delete(COOKIE_NAME);
+  // Explicit expiry: a past `Expires` alone is ignored by some clients.
+  jar.set(COOKIE_NAME, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
 }
 
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {

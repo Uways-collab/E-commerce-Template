@@ -219,3 +219,7 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   status     TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'replied', 'archived')),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- One review per customer per product (guests/seed reviews have no user_id).
+CREATE UNIQUE INDEX IF NOT EXISTS reviews_user_product
+  ON reviews (product_id, user_id) WHERE user_id IS NOT NULL;
