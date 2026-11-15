@@ -28,7 +28,9 @@ const schema = z.object({
   postalCode: z.string().trim().max(20).optional().default(""),
   country: z.string().trim().min(2, "Enter the country.").max(80),
   deliveryMethod: z.string().min(1, "Choose a delivery method."),
-  paymentMethod: z.enum(["paystack", "flutterwave", "bank_transfer", "cod"]),
+  paymentMethod: z.enum(["paystack", "flutterwave", "bank_transfer", "cod"], {
+    message: "Choose a payment method.",
+  }),
   notes: z.string().trim().max(600).optional().default(""),
   marketingOptIn: z.string().optional(),
 });
@@ -53,19 +55,21 @@ function paymentCallback(order: Order, provider: "paystack" | "flutterwave", ori
 export async function placeOrderAction(_prev: CheckoutState | null, formData: FormData): Promise<CheckoutState> {
   const settings = await getSettings();
 
+  const text = (key: string, fallback = "") => String(formData.get(key) ?? fallback).trim();
+
   const parsed = schema.safeParse({
-    email: formData.get("email"),
-    phone: formData.get("phone"),
-    fullName: formData.get("fullName"),
-    line1: formData.get("line1"),
-    line2: formData.get("line2") ?? "",
-    city: formData.get("city"),
-    state: formData.get("state") ?? "",
-    postalCode: formData.get("postalCode") ?? "",
-    country: formData.get("country"),
-    deliveryMethod: formData.get("deliveryMethod"),
-    paymentMethod: formData.get("paymentMethod"),
-    notes: formData.get("notes") ?? "",
+    email: text("email"),
+    phone: text("phone"),
+    fullName: text("fullName"),
+    line1: text("line1"),
+    line2: text("line2"),
+    city: text("city"),
+    state: text("state"),
+    postalCode: text("postalCode"),
+    country: text("country"),
+    deliveryMethod: text("deliveryMethod"),
+    paymentMethod: text("paymentMethod"),
+    notes: text("notes"),
     marketingOptIn: formData.get("marketingOptIn") ?? undefined,
   });
 

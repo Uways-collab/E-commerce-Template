@@ -63,10 +63,10 @@ const registerSchema = z.object({
 
 export async function registerAction(_prev: AuthState | null, formData: FormData): Promise<AuthState> {
   const parsed = registerSchema.safeParse({
-    name: formData.get("name"),
-    email: formData.get("email"),
-    phone: formData.get("phone") ?? "",
-    password: formData.get("password"),
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    password: String(formData.get("password") ?? ""),
   });
 
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Please check your details." };

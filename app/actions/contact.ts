@@ -20,11 +20,11 @@ const schema = z.object({
 
 export async function submitContactAction(_prev: ContactState | null, formData: FormData): Promise<ContactState> {
   const parsed = schema.safeParse({
-    name: formData.get("name"),
-    email: formData.get("email"),
-    phone: formData.get("phone") ?? "",
-    subject: formData.get("subject") ?? "",
-    message: formData.get("message"),
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    subject: String(formData.get("subject") ?? ""),
+    message: String(formData.get("message") ?? ""),
   });
 
   if (!parsed.success) {

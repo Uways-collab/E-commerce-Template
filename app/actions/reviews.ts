@@ -27,11 +27,11 @@ export async function submitReviewAction(_prev: ReviewState | null, formData: Fo
   }
 
   const parsed = schema.safeParse({
-    productId: formData.get("productId"),
-    productSlug: formData.get("productSlug"),
-    rating: formData.get("rating"),
-    title: formData.get("title"),
-    body: formData.get("body"),
+    productId: String(formData.get("productId") ?? ""),
+    productSlug: String(formData.get("productSlug") ?? ""),
+    rating: String(formData.get("rating") ?? ""),
+    title: String(formData.get("title") ?? ""),
+    body: String(formData.get("body") ?? ""),
   });
 
   if (!parsed.success) {
