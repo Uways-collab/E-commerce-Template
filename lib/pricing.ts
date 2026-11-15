@@ -89,7 +89,11 @@ export function computeTotals({
   coupon,
   deliveryMethod,
 }: PricingInput): Totals {
-  const method = deliveryMethod ?? resolveDeliveryMethod(settings);
+  // Never trust a caller-supplied delivery object: re-resolve it against the
+  // enabled methods in settings so the price always comes from configuration.
+  const method =
+    (deliveryMethod && activeDeliveryMethods(settings).find((entry) => entry.id === deliveryMethod.id)) ??
+    resolveDeliveryMethod(settings);
   const threshold = settings.commerce.freeShippingThresholdCents;
   const couponCheck = coupon ? evaluateCoupon(coupon, subtotalCents) : null;
   const validCoupon = couponCheck?.ok ? couponCheck.coupon : null;

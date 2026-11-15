@@ -32,6 +32,28 @@ export interface Database {
 
 const SCHEMA_PATH = path.join(process.cwd(), "lib", "db", "schema.sql");
 
+/**
+ * Additive column migrations. `schema.sql` is idempotent for tables, but an
+ * existing database never gains new columns from `CREATE TABLE IF NOT EXISTS`,
+ * so every added column is registered here and applied once on boot.
+ */
+const COLUMN_MIGRATIONS: { table: string; column: string; ddl: string }[] = [
+  {
+    table: "users",
+    column: "session_version",
+    ddl: "ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0",
+  },
+];
+
+function applyColumnMigrations(db: DatabaseSync) {
+  for (const migration of COLUMN_MIGRATIONS) {
+    const columns = db.prepare(`PRAGMA table_info(${migration.table})`).all() as { name?: string }[];
+    if (!columns.some((column) => column.name === migration.column)) {
+      db.exec(migration.ddl);
+    }
+  }
+}
+
 export function databasePath(): string {
   return path.resolve(process.cwd(), process.env.DATABASE_PATH ?? "./data/store.db");
 }
@@ -48,6 +70,7 @@ function createSqliteDatabase(): Database {
   // without a separate migration step.
   const schema = fs.readFileSync(SCHEMA_PATH, "utf8");
   db.exec(schema);
+  applyColumnMigrations(db);
 
   let depth = 0;
 

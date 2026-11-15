@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone          TEXT,
   role           TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'admin', 'staff')),
   marketing_opt_in INTEGER NOT NULL DEFAULT 0,
+  session_version INTEGER NOT NULL DEFAULT 0,
   created_at     TEXT NOT NULL DEFAULT (datetime('now')),
   last_login_at  TEXT
 );

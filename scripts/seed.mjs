@@ -247,7 +247,23 @@ for (const email of newsletter) {
 /* -------------------------------------------------------------------------- */
 
 const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? "admin@productprohub.com").toLowerCase();
-const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin!2345";
+const defaultAdminPassword = "Admin!2345";
+const providedAdminPassword = String(process.env.SEED_ADMIN_PASSWORD ?? "").trim();
+const adminPassword = providedAdminPassword || defaultAdminPassword;
+
+// Never ship a known administrator password into a production database.
+if (process.env.NODE_ENV === "production") {
+  if (!providedAdminPassword) {
+    console.error(
+      "Refusing to seed: set SEED_ADMIN_PASSWORD (and ideally SEED_ADMIN_EMAIL) before seeding in production.",
+    );
+    process.exit(1);
+  }
+  if (providedAdminPassword.length < 10) {
+    console.error("Refusing to seed: SEED_ADMIN_PASSWORD must be at least 10 characters in production.");
+    process.exit(1);
+  }
+}
 db.prepare(
   `INSERT INTO users (id, email, password_hash, name, phone, role, marketing_opt_in, created_at)
    VALUES (?, ?, ?, ?, ?, 'admin', 0, ?)`,

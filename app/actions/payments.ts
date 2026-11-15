@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getOrderByNumber, setPaymentReference } from "@/lib/repositories/orders";
 import { initializeFlutterwave, initializePaystack } from "@/lib/payments";
-import { getSettings } from "@/lib/settings";
+import { getSessionUser } from "@/lib/auth";
+import { hasOrderAccess } from "@/lib/order-access";
 
 async function origin() {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
@@ -14,7 +15,12 @@ async function origin() {
   return `${proto}://${host}`;
 }
 
-/** Re-open a provider payment session for an order that is still unpaid. */
+/**
+ * Re-open a provider payment session for an order that is still unpaid.
+ * Authorised for the signed-in owner or the browser holding the capability
+ * cookie for that order — a server action is directly invokable, so the page
+ * guard alone is not enough.
+ */
 export async function retryPaymentAction(formData: FormData) {
   const orderNumber = String(formData.get("order") ?? "");
   const order = getOrderByNumber(orderNumber);
@@ -22,7 +28,11 @@ export async function retryPaymentAction(formData: FormData) {
     redirect(order ? `/checkout/confirmation/${orderNumber}` : "/shop");
   }
 
-  const settings = await getSettings();
+  const user = await getSessionUser();
+  const isOwner = Boolean(user && order.userId && order.userId === user.id);
+  const capability = await hasOrderAccess(order.orderNumber);
+  if (!isOwner && !capability) redirect("/account/orders");
+
   const base = await origin();
   const callback = `${base}/checkout/verify?provider=${order.paymentMethod}&order=${encodeURIComponent(order.orderNumber)}`;
 
@@ -46,6 +56,5 @@ export async function retryPaymentAction(formData: FormData) {
     redirect(`/checkout/confirmation/${order.orderNumber}`);
   }
 
-  void settings;
   redirect(`/checkout/confirmation/${order.orderNumber}?payment=failed`);
 }

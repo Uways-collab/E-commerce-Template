@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
+  bumpSessionVersion,
   createUser,
   endSession,
   findUserByEmail,
@@ -16,16 +17,11 @@ import { rateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { newId } from "@/lib/utils";
 import { subscribeNewsletter } from "@/lib/repositories/marketing";
+import { safeNext } from "@/lib/redirects";
 
 export interface AuthState {
   error?: string;
   message?: string;
-}
-
-function safeNext(next: FormDataEntryValue | null, fallback: string) {
-  const value = String(next ?? "");
-  if (value.startsWith("/") && !value.startsWith("//")) return value;
-  return fallback;
 }
 
 export async function loginAction(_prev: AuthState | null, formData: FormData): Promise<AuthState> {
@@ -141,7 +137,20 @@ export async function changePasswordAction(_prev: AuthState | null, formData: Fo
 
   const { hashPassword } = await import("@/lib/auth");
   db().run("UPDATE users SET password_hash = ? WHERE id = ?", [hashPassword(next), user.id]);
-  return { message: "Password changed." };
+
+  // Invalidate other devices, then reissue the current browser's token.
+  bumpSessionVersion(user.id);
+  await startSession(user.id);
+
+  return { message: "Password changed. Other devices have been signed out." };
+}
+
+/** Sign out of every device by invalidating all issued session tokens. */
+export async function logoutEverywhereAction() {
+  const session = await getSessionUser();
+  if (session) bumpSessionVersion(session.id);
+  await endSession();
+  redirect("/account/login");
 }
 
 const addressSchema = z.object({

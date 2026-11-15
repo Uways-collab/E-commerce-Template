@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import crypto from "node:crypto";
 import { db } from "@/lib/db";
 import { newId } from "@/lib/utils";
+import { open, seal } from "@/lib/sign";
 
 const COOKIE_NAME = "pph_session";
 const SESSION_DAYS = 30;
@@ -43,51 +44,35 @@ export function verifyPassword(password: string, stored: string): boolean {
 /* Signed session tokens                                                      */
 /* -------------------------------------------------------------------------- */
 
-function secret(): string {
-  const value = process.env.AUTH_SECRET;
-  if (!value || value.length < 16) {
-    // Never silently fall back to a guessable secret in production.
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("AUTH_SECRET is not set. Refusing to issue insecure sessions.");
-    }
-    return "development-only-insecure-secret-change-me";
-  }
-  return value;
+/**
+ * Tokens carry the account's `session_version`. Bumping that column invalidates
+ * every token issued before the bump — used on password change and on
+ * "sign out of all devices".
+ */
+interface SessionToken extends Record<string, unknown> {
+  uid: string;
+  exp: number;
+  ver: number;
 }
 
-function sign(payload: string): string {
-  return crypto.createHmac("sha256", secret()).update(payload).digest("base64url");
+function encodeToken(userId: string, version: number): string {
+  return seal({ uid: userId, ver: version, exp: Date.now() + SESSION_DAYS * 86_400_000 });
 }
 
-function encodeToken(userId: string): string {
-  const payload = Buffer.from(
-    JSON.stringify({ uid: userId, exp: Date.now() + SESSION_DAYS * 86_400_000 }),
-  ).toString("base64url");
-  return `${payload}.${sign(payload)}`;
-}
-
-function decodeToken(token: string): { uid: string } | null {
-  const [payload, signature] = token.split(".");
-  if (!payload || !signature) return null;
-  const expected = sign(payload);
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-  try {
-    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString()) as {
-      uid?: string;
-      exp?: number;
-    };
-    if (!parsed.uid || !parsed.exp || parsed.exp < Date.now()) return null;
-    return { uid: parsed.uid };
-  } catch {
-    return null;
-  }
+function decodeToken(token: string): { uid: string; ver: number } | null {
+  const parsed = open<SessionToken>(token);
+  if (!parsed?.uid || typeof parsed.exp !== "number" || parsed.exp < Date.now()) return null;
+  return { uid: parsed.uid, ver: Number(parsed.ver ?? 0) };
 }
 
 export async function startSession(userId: string) {
+  const record = db().get<{ session_version: number }>(
+    "SELECT session_version FROM users WHERE id = ?",
+    [userId],
+  );
+  if (!record) return;
   const jar = await cookies();
-  jar.set(COOKIE_NAME, encodeToken(userId), {
+  jar.set(COOKIE_NAME, encodeToken(userId, Number(record.session_version ?? 0)), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -114,10 +99,15 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     name: string;
     role: SessionUser["role"];
     phone: string | null;
-  }>("SELECT id, email, name, role, phone FROM users WHERE id = ?", [decoded.uid]);
+    session_version: number;
+  }>("SELECT id, email, name, role, phone, session_version FROM users WHERE id = ?", [decoded.uid]);
 
   if (!row) return null;
-  return row;
+  // A password change (or an explicit sign-out-everywhere) bumps this version.
+  if (Number(row.session_version ?? 0) !== decoded.ver) return null;
+
+  const { session_version: _version, ...user } = row;
+  return user;
 });
 
 export async function requireUser(next = "/account") {
@@ -181,6 +171,11 @@ export function createUser(input: {
     ],
   );
   return findUserById(id)!;
+}
+
+/** Invalidate every session token issued for this account so far. */
+export function bumpSessionVersion(userId: string) {
+  db().run("UPDATE users SET session_version = session_version + 1 WHERE id = ?", [userId]);
 }
 
 export function touchLogin(userId: string) {
