@@ -22,14 +22,27 @@
 
 ## Vercel
 
-Vercel's filesystem is read-only/ephemeral at runtime, so **SQLite needs a persistent volume**:
+**The deployment bundle is read-only.** `lib/db.ts` therefore resolves the database path by platform: an explicit
+`DATABASE_PATH` wins, serverless platforms (Vercel / Lambda / Netlify) use `os.tmpdir()/product-pro-hub/store.db`,
+everything else keeps `./data/store.db`. On a serverless platform a fresh temporary database is copied from the
+committed demo snapshot `data/seed/store.db`, so the storefront renders on the first request instead of 500ing on
+`EACCES: permission denied, mkdir '<cwd>/data'`.
+
+A temporary store is **ephemeral**: orders, new accounts, carts and edits live in one instance's memory of the
+filesystem and disappear when that instance is recycled. It is fine for a demo or a staging preview, not for real
+commerce.
 
 1. Import the repository, framework preset **Next.js**.
-2. Set the environment variables above; point `DATABASE_PATH` at `/var/data/store.db` if you attach a volume
-   (Vercel Postgres/Supabase would require swapping the `Database` implementation — see below).
-3. Run `npm run db:seed` once against the production data path (locally with the same `DATABASE_PATH`, or as a
-   one-off job), then sign in and change the admin password.
+2. Set `AUTH_SECRET` and `NEXT_PUBLIC_SITE_URL` for **all** environments. A missing `AUTH_SECRET` is insidious: the
+   anonymous site looks healthy while every request carrying a session cookie throws.
+3. For durable data, attach a volume and point `DATABASE_PATH` at it (e.g. `/var/data/store.db`), then run
+   `npm run db:seed` once against that path — locally with the same `DATABASE_PATH`, or as a one-off job — and change
+   the admin password. If the configured path turns out to be read-only the app falls back to the temporary store and
+   logs a warning rather than taking the site down.
 4. Add the custom domain, then update `NEXT_PUBLIC_SITE_URL` and redeploy.
+5. Smoke-test the deployment with `curl -s https://your-domain/api/health`. It reports
+   `{ ok, auth: { ok }, database: { ephemeral, source, seededDemoData, file }, products }` and answers 503 when the
+   database or session signing is broken.
 
 For a purely serverless deployment with no volume, the cleanest path is Postgres: implement `lib/db.ts`'s `Database`
 interface with `pg` or Supabase, seed the schema (`lib/db/schema.sql` needs small dialect tweaks: `AUTOINCREMENT` →

@@ -39,6 +39,33 @@ export function seal( payload: Record<string, unknown>): string {
   return `${encoded}.${signature(encoded)}`;
 }
 
+/**
+ * Sign and verify a throwaway token with the live secret.
+ *
+ * Used by `/api/health`: it is the only way to tell from the outside whether
+ * session signing will work. A deployment with no `AUTH_SECRET` serves
+ * anonymous pages happily and then 500s the moment someone signs in, so the
+ * probe turns that into a failing health check instead of a support ticket.
+ */
+export function authSelfTest(): { ok: true } | { ok: false; error: string } {
+  try {
+    const token = seal({ probe: "health" });
+    const decoded = open<{ probe: string }>(token);
+    if (decoded?.probe !== "health") {
+      return { ok: false, error: "Session tokens did not round-trip." };
+    }
+
+    const [payload] = token.split(".");
+    if (open(`${payload}.AAAA`) !== null) {
+      return { ok: false, error: "A tampered session token was accepted." };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: (error as Error)?.message ?? "Token signing failed." };
+  }
+}
+
 /** Verify and decode a sealed payload; returns null when tampered or malformed. */
 export function open<T extends Record<string, unknown>>(token: string | undefined | null): T | null {
   if (!token) return null;
