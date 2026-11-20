@@ -12,6 +12,9 @@ npm-debug.log*
 .DS_Store
 data/*.db
 data/*.db-*
+# The demo snapshot is committed on purpose: serverless deployments seed a
+# writable /tmp database from it (see lib/db.ts).
+!data/seed/store.db
 data/uploads/*
 !data/uploads/.gitkeep
 next-env.d.ts
