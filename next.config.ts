@@ -53,6 +53,10 @@ const nextConfig: NextConfig = {
   // node:sqlite is a Node.js builtin — keep it out of the bundler's module graph.
   serverExternalPackages: ["node:sqlite"],
   poweredByHeader: false,
+  // The hosted preview proxy serves the dev server from a *.e2b.app origin.
+  // Without this, dev asset requests from that origin are rejected and the
+  // preview renders without styles or HMR.
+  allowedDevOrigins: ["*.e2b.app", "*.e2b.dev"],
   images: {
     formats: ["image/avif", "image/webp"],
     deviceSizes: [360, 420, 640, 828, 1080, 1200, 1600, 1920, 2048],
