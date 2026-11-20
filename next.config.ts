@@ -52,6 +52,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // node:sqlite is a Node.js builtin — keep it out of the bundler's module graph.
   serverExternalPackages: ["node:sqlite"],
+  // The schema and the demo snapshot are read at runtime; without this Next's
+  // file tracing omits them from the serverless bundle and every page 500s.
+  outputFileTracingIncludes: {
+    "/**": ["./data/seed/store.db", "./lib/db/schema.sql"],
+  },
   poweredByHeader: false,
   // The hosted preview proxy serves the dev server from a *.e2b.app origin.
   // Without this, dev asset requests from that origin are rejected and the
